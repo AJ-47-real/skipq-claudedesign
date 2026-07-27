@@ -1,0 +1,1897 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkipQ — Skip the line. Not the store.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      /* ---- counter (dark) surfaces ---- */
+      --ink: #18140D;
+      --counter: #1E1810;
+      --counter-2: #261F14;
+      --paper-on-dark: #F5F1E6;
+      --line-d: rgba(245, 241, 230, .14);
+      --line-d-strong: rgba(245, 241, 230, .26);
+
+      /* ---- paper (light) surfaces ---- */
+      --paper: #F4F0E4;
+      --paper-dim: #ECE6D4;
+      --card: #FBF9F1;
+      --text: #1B1710;
+      --text-soft: #5C5643;
+      --text-faint: #8D8770;
+      --line-l: rgba(27, 23, 16, .13);
+      --line-l-strong: rgba(27, 23, 16, .24);
+
+      /* ---- signal amber : virtual queue ---- */
+      --amber: #D9660D;
+      --amber-deep: #A6480A;
+      --amber-glow: rgba(217, 102, 13, .35);
+
+      /* ---- trust indigo : express + payment ---- */
+      --indigo: #3E5FA8;
+      --indigo-deep: #28437C;
+      --indigo-glow: rgba(62, 95, 168, .3);
+
+      /* ---- value gold : savings / flyer ---- */
+      --gold: #9C7A2E;
+      --gold-deep: #6E551D;
+
+      --shadow: 0 34px 64px -30px rgba(24, 20, 13, .4);
+      --shadow-sm: 0 14px 30px -16px rgba(24, 20, 13, .35);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--paper);
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    ::selection {
+      background: var(--amber);
+      color: #fff;
+    }
+
+    .mono {
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .serif {
+      font-family: 'Fraunces', serif;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    img,
+    video {
+      display: block;
+      max-width: 100%;
+    }
+
+    svg.icon {
+      width: 22px;
+      height: 22px;
+      display: block;
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 32px;
+    }
+
+    /* ---------- reveal ---------- */
+    .reveal {
+      opacity: 0;
+      transform: translateY(26px);
+      transition: opacity .8s cubic-bezier(.16, .8, .24, 1), transform .8s cubic-bezier(.16, .8, .24, 1);
+    }
+
+    .reveal.in {
+      opacity: 1;
+      transform: none;
+    }
+
+    .reveal-d1 {
+      transition-delay: .08s;
+    }
+
+    .reveal-d2 {
+      transition-delay: .16s;
+    }
+
+    .reveal-d3 {
+      transition-delay: .24s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+      }
+
+      * {
+        animation: none !important;
+      }
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--amber);
+      outline-offset: 3px;
+    }
+
+    /* ---------- barcode divider ---------- */
+    .barcode {
+      height: 30px;
+      background-image: repeating-linear-gradient(90deg,
+          currentColor 0 1px, transparent 1px 4px,
+          currentColor 4px 6px, transparent 6px 9px,
+          currentColor 9px 10px, transparent 10px 15px,
+          currentColor 15px 17px, transparent 17px 21px);
+      color: var(--ink);
+      opacity: .85;
+    }
+
+    .barcode.on-dark {
+      color: var(--paper-on-dark);
+      opacity: .5;
+    }
+
+    /* ---------- nav ---------- */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 24px 0;
+      transition: background .4s ease, padding .4s ease, border-color .4s ease, backdrop-filter .4s ease;
+      border-bottom: 1px solid transparent;
+    }
+
+    header.scrolled {
+      background: rgba(244, 240, 228, 0.88);
+      backdrop-filter: blur(14px) saturate(1.2);
+      padding: 15px 0;
+      border-bottom: 1px solid var(--line-l);
+    }
+
+    header .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Fraunces', serif;
+      font-weight: 700;
+      font-size: 1.28rem;
+      letter-spacing: -0.01em;
+    }
+
+    .logo .mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      background: var(--ink);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .logo .mark::after {
+      content: '';
+      position: absolute;
+      left: 5px;
+      right: 5px;
+      top: 6px;
+      bottom: 6px;
+      background-image: repeating-linear-gradient(90deg, var(--amber) 0 2px, transparent 2px 4px);
+    }
+
+    nav.links {
+      display: flex;
+      gap: 38px;
+      align-items: center;
+    }
+
+    nav.links a {
+      font-size: .92rem;
+      color: var(--text-soft);
+      font-weight: 500;
+      position: relative;
+      padding: 4px 0;
+    }
+
+    nav.links a::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 1px;
+      background: var(--ink);
+      transform: scaleX(0);
+      transform-origin: right;
+      transition: transform .3s ease;
+    }
+
+    nav.links a:hover::after {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+
+    .nav-cta {
+      background: var(--ink);
+      color: var(--paper) !important;
+      padding: 11px 21px;
+      border-radius: 3px;
+      font-size: .86rem;
+      font-weight: 600;
+      letter-spacing: .01em;
+      border: 1px solid var(--ink);
+    }
+
+    .nav-cta:hover {
+      background: var(--amber);
+      border-color: var(--amber);
+    }
+
+    /* ---------- hero ---------- */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-top: 150px;
+      padding-bottom: 70px;
+      overflow: hidden;
+      background: var(--paper);
+    }
+
+    .hero-texture {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image: repeating-linear-gradient(0deg, var(--line-l) 0 1px, transparent 1px 30px);
+      mask-image: radial-gradient(ellipse 65% 55% at 78% 32%, black 0%, transparent 72%);
+      opacity: .9;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 40px;
+      align-items: start;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .72rem;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: var(--amber-deep);
+      font-weight: 600;
+      background: rgba(217, 102, 13, 0.09);
+      border: 1px solid rgba(217, 102, 13, 0.3);
+      padding: 7px 14px 7px 11px;
+      border-radius: 2px;
+    }
+
+    .eyebrow .tick {
+      width: 6px;
+      height: 6px;
+      background: var(--amber);
+      animation: blink 1.6s steps(1) infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      49% {
+        opacity: 1;
+      }
+
+      50%,
+      100% {
+        opacity: .25;
+      }
+    }
+
+    h1.headline {
+      font-family: 'Fraunces', serif;
+      font-weight: 600;
+      font-size: clamp(2.5rem, 5.3vw, 4.4rem);
+      letter-spacing: -0.02em;
+      line-height: 1.03;
+      margin: 24px 0 24px;
+      max-width: 640px;
+    }
+
+    h1.headline em {
+      font-style: italic;
+      font-weight: 500;
+      color: var(--amber-deep);
+    }
+
+    .hero-sub {
+      font-size: 1.14rem;
+      color: var(--text-soft);
+      max-width: 480px;
+      line-height: 1.6;
+      margin-bottom: 36px;
+      font-weight: 400;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 56px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 15px 25px;
+      border-radius: 3px;
+      font-weight: 600;
+      font-size: .95rem;
+      border: 1px solid transparent;
+      transition: transform .25s ease, background .25s ease, box-shadow .25s ease, border-color .25s ease;
+    }
+
+    .btn-primary {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .btn-primary:hover {
+      background: var(--amber-deep);
+      transform: translateY(-2px);
+      box-shadow: 0 16px 28px -12px rgba(166, 72, 10, 0.5);
+    }
+
+    .btn-ghost {
+      border-color: var(--line-l-strong);
+      color: var(--text);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--ink);
+      transform: translateY(-2px);
+    }
+
+    .hero-tickets {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .mini-ticket {
+      background: var(--card);
+      border: 1px solid var(--line-l);
+      border-radius: 4px;
+      padding: 15px 18px;
+      min-width: 132px;
+      box-shadow: var(--shadow-sm);
+      border-top: 3px solid var(--line-l);
+    }
+
+    .mini-ticket.amber {
+      border-top-color: var(--amber);
+    }
+
+    .mini-ticket.indigo {
+      border-top-color: var(--indigo);
+    }
+
+    .mini-ticket .num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1.4rem;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .mini-ticket.amber .num {
+      color: var(--amber-deep);
+    }
+
+    .mini-ticket.indigo .num {
+      color: var(--indigo-deep);
+    }
+
+    .mini-ticket .label {
+      font-size: .75rem;
+      color: var(--text-faint);
+      margin-top: 7px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+
+    /* ---- signature: now-serving board ---- */
+    .serving-board {
+      background: var(--ink);
+      border-radius: 10px;
+      padding: 22px 24px 20px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .serving-board::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 3px);
+      pointer-events: none;
+    }
+
+    .sb-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .68rem;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: #8A8368;
+      margin-bottom: 14px;
+    }
+
+    .sb-row {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+
+    .sb-digits {
+      display: flex;
+      gap: 6px;
+    }
+
+    .sb-flap {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600;
+      font-size: 2.6rem;
+      line-height: 1;
+      color: var(--amber);
+      background: #0F0C07;
+      padding: 8px 12px;
+      border-radius: 5px;
+      text-shadow: 0 0 18px var(--amber-glow);
+      min-width: 0.9em;
+      text-align: center;
+    }
+
+    .sb-flap.flip {
+      animation: flapChange .25s cubic-bezier(.22, .68, .36, 1);
+    }
+
+    @keyframes flapChange {
+      0% {
+        opacity: .15;
+        transform: translateY(-8px) scaleY(.85);
+      }
+
+      60% {
+        opacity: 1;
+        transform: translateY(1px) scaleY(1.02);
+      }
+
+      100% {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .sb-arrow {
+      color: #5C563E;
+      font-size: 1.4rem;
+    }
+
+    .sb-reg {
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--paper-on-dark);
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .sb-foot {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .72rem;
+      color: #7A7458;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .sb-foot .dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--amber);
+      margin-right: 6px;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(217, 102, 13, .5);
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px rgba(217, 102, 13, 0);
+      }
+    }
+
+    /* ---------- section shell ---------- */
+    section {
+      position: relative;
+      padding: 130px 0;
+    }
+
+    .section-dim {
+      background: var(--paper-dim);
+    }
+
+    .section-dark {
+      background: var(--counter);
+      color: var(--paper-on-dark);
+    }
+
+    .section-head {
+      max-width: 620px;
+      margin-bottom: 60px;
+    }
+
+    .section-head .eyebrow {
+      margin-bottom: 20px;
+    }
+
+    .section-head h2 {
+      font-family: 'Fraunces', serif;
+      font-weight: 600;
+      font-size: clamp(1.9rem, 3.3vw, 2.7rem);
+      letter-spacing: -0.02em;
+      line-height: 1.12;
+    }
+
+    .section-head p {
+      margin-top: 16px;
+      font-size: 1.05rem;
+      color: var(--text-soft);
+      line-height: 1.65;
+    }
+
+    .section-dark .section-head p {
+      color: #B8B29A;
+    }
+
+    .section-dark .eyebrow {
+      background: rgba(217, 102, 13, 0.16);
+      border-color: rgba(217, 102, 13, 0.4);
+      color: var(--amber);
+    }
+
+    /* ---------- problem receipt list ---------- */
+    .receipt-list {
+      background: var(--counter-2);
+      border: 1px solid var(--line-d);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .receipt-row {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 22px;
+      padding: 34px 36px;
+      border-top: 1px solid var(--line-d);
+    }
+
+    .receipt-row:first-child {
+      border-top: none;
+    }
+
+    .receipt-row .ic {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(217, 102, 13, .12);
+      border: 1px solid rgba(217, 102, 13, .3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--amber);
+    }
+
+    .receipt-row h3 {
+      font-size: 1.12rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .receipt-row p {
+      color: #B0AA92;
+      font-size: .95rem;
+      line-height: 1.6;
+      max-width: 520px;
+    }
+
+    /* ---------- feature layout ---------- */
+    .feature {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 68px;
+      align-items: center;
+    }
+
+    .feature.reverse .feature-media {
+      order: 2;
+    }
+
+    .feature.reverse .feature-copy {
+      order: 1;
+    }
+
+    .feature-copy .tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .74rem;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: inline-block;
+      padding-bottom: 4px;
+      border-bottom: 2px solid currentColor;
+    }
+
+    .feature-copy.amber .tag {
+      color: var(--amber-deep);
+    }
+
+    .feature-copy.indigo .tag {
+      color: var(--indigo-deep);
+    }
+
+    .feature-copy.gold .tag {
+      color: var(--gold-deep);
+    }
+
+    .feature-copy h3 {
+      font-family: 'Fraunces', serif;
+      font-weight: 600;
+      font-size: clamp(1.7rem, 2.7vw, 2.3rem);
+      letter-spacing: -0.02em;
+      line-height: 1.12;
+      margin-bottom: 18px;
+    }
+
+    .feature-copy>p.desc {
+      font-size: 1.02rem;
+      color: var(--text-soft);
+      line-height: 1.65;
+      margin-bottom: 26px;
+    }
+
+    .feature-list {
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+      margin-bottom: 28px;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: .96rem;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .feature-list .tick {
+      width: 19px;
+      height: 19px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .feature-copy.amber .tick {
+      background: var(--amber);
+    }
+
+    .feature-copy.indigo .tick {
+      background: var(--indigo);
+    }
+
+    .feature-copy.gold .tick {
+      background: var(--gold);
+    }
+
+    .feature-list .tick svg {
+      width: 10px;
+      height: 10px;
+    }
+
+    .callout-strip {
+      display: inline-flex;
+      align-items: center;
+      gap: 13px;
+      background: var(--card);
+      border: 1px solid var(--line-l);
+      border-radius: 3px;
+      padding: 9px 9px 9px 18px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .callout-strip .cs-label {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text-soft);
+    }
+
+    .callout-strip .cs-value {
+      font-family: 'IBM Plex Mono', monospace;
+      color: #fff;
+      padding: 7px 14px;
+      border-radius: 2px;
+      font-weight: 600;
+      font-size: .9rem;
+    }
+
+    .feature-copy.amber .cs-value {
+      background: var(--amber-deep);
+    }
+
+    .feature-copy.indigo .cs-value {
+      background: var(--indigo-deep);
+    }
+
+    /* device frame */
+    .device-frame {
+      position: relative;
+      border-radius: 14px;
+      background: var(--card);
+      border: 1px solid var(--line-l);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .device-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2px 6px 14px;
+    }
+
+    .device-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .device-dots span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--line-l-strong);
+    }
+
+    .device-live {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .68rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .feature-copy.amber~.feature-media .device-live {
+      color: var(--amber-deep);
+    }
+
+    .device-live .d {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--amber);
+      animation: pulse 1.8s infinite;
+    }
+
+    .feature.reverse .device-live {
+      color: var(--amber-deep);
+    }
+
+    #express .device-live {
+      color: var(--indigo-deep);
+    }
+
+    #express .device-live .d {
+      background: var(--indigo);
+    }
+
+    .device-frame video {
+      width: 100%;
+      border-radius: 8px;
+      background: #000;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+    }
+
+    .device-frame .float-tag {
+      position: absolute;
+      z-index: 3;
+      background: var(--ink);
+      color: var(--paper);
+      border-radius: 8px;
+      padding: 12px 16px;
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.45);
+      font-size: .83rem;
+    }
+
+    .device-frame .float-tag .ft-title {
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .device-frame .float-tag .ft-sub {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .78rem;
+    }
+
+    #express .float-tag .ft-sub {
+      color: var(--indigo-bright, #7DA0EF);
+    }
+
+    #queue .float-tag .ft-sub {
+      color: var(--amber);
+    }
+
+    .tag-express {
+      bottom: -16px;
+      right: 22px;
+    }
+
+    .tag-queue {
+      top: -16px;
+      left: 22px;
+    }
+
+    /* ---- flyer mock ---- */
+    .whatsapp-mock {
+      background: var(--card);
+      border: 1px solid var(--line-l);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      position: relative;
+    }
+
+    .wa-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line-l);
+    }
+
+    .wa-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: .85rem;
+      font-family: 'Fraunces', serif;
+    }
+
+    .wa-name {
+      font-weight: 700;
+      font-size: .9rem;
+    }
+
+    .wa-name span {
+      display: block;
+      font-weight: 500;
+      font-size: .75rem;
+      color: var(--text-faint);
+    }
+
+    .wa-bubble {
+      background: var(--paper);
+      border-radius: 12px 12px 12px 3px;
+      padding: 16px;
+    }
+
+    .flyer-card {
+      background: var(--ink);
+      color: var(--paper);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .flyer-top {
+      padding: 20px 20px 16px;
+    }
+
+    .flyer-badge {
+      display: inline-block;
+      background: var(--gold);
+      color: #1B1710;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 700;
+      font-size: .7rem;
+      padding: 4px 10px;
+      border-radius: 2px;
+      letter-spacing: .03em;
+      margin-bottom: 14px;
+    }
+
+    .flyer-top h4 {
+      font-family: 'Fraunces', serif;
+      font-size: 1.28rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+    }
+
+    .flyer-top p {
+      font-size: .84rem;
+      color: #B8B29A;
+    }
+
+    .flyer-items {
+      padding: 14px 20px 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .flyer-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: .85rem;
+      padding: 8px 0;
+    }
+
+    .flyer-item .fi-name {
+      font-weight: 600;
+    }
+
+    .flyer-item .fi-price {
+      font-family: 'IBM Plex Mono', monospace;
+      color: #D8B564;
+    }
+
+    .flyer-foot {
+      padding: 12px 20px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .7rem;
+      color: #7A7458;
+    }
+
+    .wa-time {
+      text-align: right;
+      font-size: .7rem;
+      color: var(--text-faint);
+      margin-top: 8px;
+    }
+
+    /* ---------- differentiator: two receipts ---------- */
+    .receipts-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 36px;
+    }
+
+    .receipt {
+      position: relative;
+      border-radius: 6px;
+      padding: 36px 32px 30px;
+    }
+
+    .receipt::before,
+    .receipt::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 11px;
+      background-image: linear-gradient(135deg, var(--counter) 50%, transparent 50%) 0 0/16px 16px repeat-x,
+        linear-gradient(45deg, var(--counter) 50%, transparent 50%) 0 0/16px 16px repeat-x;
+    }
+
+    .receipt::before {
+      top: -1px;
+    }
+
+    .receipt::after {
+      bottom: -1px;
+      transform: scaleY(-1);
+    }
+
+    .receipt.old {
+      background: #DDD6C1;
+      color: #4A4636;
+      transform: rotate(-1.4deg);
+      opacity: .92;
+    }
+
+    .receipt.old::before,
+    .receipt.old::after {
+      background-image: linear-gradient(135deg, #1E1810 50%, transparent 50%) 0 0/16px 16px repeat-x,
+        linear-gradient(45deg, #1E1810 50%, transparent 50%) 0 0/16px 16px repeat-x;
+    }
+
+    .receipt.old h4 {
+      color: #4A4636;
+    }
+
+    .receipt.new {
+      background: var(--paper-on-dark);
+      color: var(--ink);
+      transform: rotate(1deg);
+      box-shadow: 0 30px 50px -18px rgba(0, 0, 0, .5);
+    }
+
+    .receipt h4 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .76rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 22px;
+      padding-bottom: 14px;
+      border-bottom: 1px dashed rgba(0, 0, 0, .2);
+    }
+
+    .receipt.new h4 {
+      color: var(--amber-deep);
+    }
+
+    .r-row {
+      display: flex;
+      gap: 10px;
+      padding: 9px 0;
+      font-size: .92rem;
+    }
+
+    .r-row .ri {
+      flex-shrink: 0;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 700;
+    }
+
+    .receipt.old .ri {
+      color: #8A6B4A;
+    }
+
+    .receipt.new .ri {
+      color: var(--amber-deep);
+    }
+
+    .r-total {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed rgba(0, 0, 0, .2);
+      display: flex;
+      justify-content: space-between;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 700;
+      font-size: .92rem;
+    }
+
+    /* ---------- retailers ---------- */
+    .rev-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+      background: var(--line-l);
+      border: 1px solid var(--line-l);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .rev-card {
+      background: var(--card);
+      padding: 30px 24px;
+      transition: background .25s ease;
+    }
+
+    .rev-card:hover {
+      background: var(--paper-dim);
+    }
+
+    .rev-card .rev-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--paper-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      color: var(--indigo-deep);
+    }
+
+    .rev-card h4 {
+      font-size: .98rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .rev-card p {
+      font-size: .87rem;
+      color: var(--text-soft);
+      line-height: 1.55;
+    }
+
+    .who-row {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      margin-top: 52px;
+      flex-wrap: wrap;
+      padding-top: 36px;
+      border-top: 1px solid var(--line-l);
+    }
+
+    .who-row .who-item {
+      font-size: .9rem;
+      color: var(--text-soft);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .who-row .who-item b {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    /* ---------- final cta (ticket tear-off) ---------- */
+    .final-cta {
+      padding: 70px 0 130px;
+    }
+
+    .cta-ticket {
+      max-width: 640px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--line-l);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 64px 48px;
+      text-align: center;
+      position: relative;
+    }
+
+    .cta-ticket::before,
+    .cta-ticket::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 26px;
+      height: 26px;
+      background: var(--paper);
+      border-radius: 50%;
+      transform: translateY(-50%);
+    }
+
+    .cta-ticket::before {
+      left: -13px;
+    }
+
+    .cta-ticket::after {
+      right: -13px;
+    }
+
+    .final-cta h2 {
+      font-family: 'Fraunces', serif;
+      font-weight: 600;
+      font-size: clamp(2.1rem, 4.4vw, 3.2rem);
+      letter-spacing: -0.02em;
+      line-height: 1.06;
+      margin-bottom: 20px;
+    }
+
+    .final-cta .accent {
+      font-style: italic;
+      color: var(--amber-deep);
+    }
+
+    .final-cta p {
+      font-size: 1.05rem;
+      color: var(--text-soft);
+      max-width: 440px;
+      margin: 0 auto 34px;
+    }
+
+    .final-cta .btn-primary {
+      padding: 17px 32px;
+      font-size: .98rem;
+    }
+
+    /* ---------- footer ---------- */
+    footer {
+      background: var(--ink);
+      color: var(--paper-on-dark);
+      padding: 56px 0 0;
+    }
+
+    .foot-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 30px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--line-d);
+    }
+
+    .foot-logo {
+      font-family: 'Fraunces', serif;
+      font-weight: 700;
+      font-size: 1.3rem;
+      letter-spacing: -0.01em;
+      margin-bottom: 10px;
+    }
+
+    .foot-tag {
+      color: #8A8567;
+      font-size: .92rem;
+      max-width: 260px;
+    }
+
+    .foot-links {
+      display: flex;
+      gap: 56px;
+      flex-wrap: wrap;
+    }
+
+    .foot-col h5 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .7rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #7A7458;
+      margin-bottom: 16px;
+    }
+
+    .foot-col a {
+      display: block;
+      font-size: .88rem;
+      color: #C8C2A8;
+      margin-bottom: 10px;
+    }
+
+    .foot-col a:hover {
+      color: var(--amber);
+    }
+
+    .foot-bottom {
+      display: flex;
+      justify-content: space-between;
+      padding: 24px 0;
+      font-size: .78rem;
+      color: #6B6650;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    /* ---------- responsive ---------- */
+    @media (max-width: 980px) {
+      .hero-content {
+        grid-template-columns: 1fr;
+      }
+
+      .serving-board {
+        max-width: 340px;
+      }
+    }
+
+    @media (max-width: 880px) {
+      .wrap {
+        padding: 0 22px;
+      }
+
+      nav.links {
+        display: none;
+      }
+
+      .feature,
+      .feature.reverse {
+        grid-template-columns: 1fr;
+        gap: 34px;
+      }
+
+      .feature.reverse .feature-media {
+        order: 1;
+      }
+
+      .feature.reverse .feature-copy {
+        order: 2;
+      }
+
+      .receipts-wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .rev-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      section {
+        padding: 88px 0;
+      }
+
+      .hero {
+        padding-top: 118px;
+      }
+
+      .foot-links {
+        gap: 34px;
+      }
+
+      .device-frame .float-tag {
+        display: none;
+      }
+
+      .cta-ticket {
+        padding: 48px 28px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .rev-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-tickets {
+        gap: 10px;
+      }
+
+      .mini-ticket {
+        min-width: 120px;
+        padding: 12px 15px;
+      }
+
+      .sb-flap {
+        font-size: 2rem;
+        padding: 6px 9px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header id="siteHeader">
+    <div class="wrap">
+      <div class="logo"><span class="mark"></span>SkipQ</div>
+      <nav class="links">
+        <a href="#express">Express Lane</a>
+        <a href="#queue">Virtual Queue</a>
+        <a href="#flyer">AI Flyer</a>
+        <a href="#retailers">For Retailers</a>
+      </nav>
+      <a href="mailto:alanjolly004@gmail.com" class="nav-cta">Get early access</a>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-texture"></div>
+    <div class="wrap hero-content">
+      <div>
+        <div class="eyebrow reveal in"><span class="tick"></span>Retail checkout, reimagined</div>
+        <h1 class="headline reveal in">Skip the line.<br><em>Not the store.</em></h1>
+        <p class="hero-sub reveal in reveal-d1">SkipQ splits every checkout into two lanes — an express lane for quick
+          baskets, a virtual queue for full trolleys — so nobody stands still again.</p>
+        <div class="hero-actions reveal in reveal-d2">
+          <a href="#express" class="btn btn-primary">See how it works</a>
+          <a href="#retailers" class="btn btn-ghost">For retailers</a>
+        </div>
+        <div class="hero-tickets reveal in reveal-d3">
+          <div class="mini-ticket indigo">
+            <div class="num mono">&lt;60s</div>
+            <div class="label">Express checkout</div>
+          </div>
+          <div class="mini-ticket indigo">
+            <div class="num mono">1–5</div>
+            <div class="label">Items, express lane</div>
+          </div>
+          <div class="mini-ticket amber">
+            <div class="num mono">0 min</div>
+            <div class="label">Wait, in line</div>
+          </div>
+          <div class="mini-ticket amber">
+            <div class="num mono">6+</div>
+            <div class="label">Items, virtual queue</div>
+          </div>
+        </div>
+      </div>
+      <div class="reveal in reveal-d2">
+        <div class="serving-board">
+          <div class="sb-label">Now serving</div>
+          <div class="sb-row">
+            <div class="sb-digits">
+              <div class="sb-flap mono" id="flap1">0</div>
+              <div class="sb-flap mono" id="flap2">3</div>
+            </div>
+            <span class="sb-arrow">→</span>
+            <div class="sb-reg">REG <span id="regNum">05</span></div>
+          </div>
+          <div class="sb-foot">
+            <span><span class="dot"></span>LIVE QUEUE</span>
+            <span id="waitClock">AVG WAIT · 00:00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="barcode"></div>
+
+  <!-- PROBLEM -->
+  <section class="section-dark">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="eyebrow">The problem</div>
+        <h2>The checkout line hasn't changed in fifty years.</h2>
+        <p>Every existing queue system still asks the customer to do something first — press a button, scan a kiosk,
+          take a paper ticket. SkipQ removes the line itself, not just the feeling of it.</p>
+      </div>
+      <div class="receipt-list">
+        <div class="receipt-row reveal">
+          <div class="ic"><svg class="icon" viewBox="0 0 24 24" fill="none">
+              <path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L20.5 8H6" stroke="currentColor"
+                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="9" cy="20" r="1.4" fill="currentColor" />
+              <circle cx="17" cy="20" r="1.4" fill="currentColor" />
+            </svg></div>
+          <div>
+            <h3>Small baskets get stuck behind big ones</h3>
+            <p>A shopper with five items waits behind a shopper with fifty. There's no fast lane built for how people
+              actually shop.</p>
+          </div>
+        </div>
+        <div class="receipt-row reveal reveal-d1">
+          <div class="ic"><svg class="icon" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.6" />
+              <path d="M12 7.5V12l3.2 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg></div>
+          <div>
+            <h3>Waiting means standing still</h3>
+            <p>A full trolley means a real cashier — and a fixed line with nothing to do until it's your turn.</p>
+          </div>
+        </div>
+        <div class="receipt-row reveal reveal-d2">
+          <div class="ic"><svg class="icon" viewBox="0 0 24 24" fill="none">
+              <path d="M4 10v4a1 1 0 0 0 1 1h1.4l7.6 3.4V5.6L6.4 9H5a1 1 0 0 0-1 1Z" stroke="currentColor"
+                stroke-width="1.6" stroke-linejoin="round" />
+              <path d="M17.5 9.2a3.4 3.4 0 0 1 0 5.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg></div>
+          <div>
+            <h3>Promotions are generic</h3>
+            <p>Flyers and push notifications blast every customer the same offer, whether or not it's ever something
+              they buy.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURE 1: EXPRESS LANE -->
+  <section id="express">
+    <div class="wrap">
+      <div class="feature">
+        <div class="feature-copy indigo reveal">
+          <span class="tag">1–5 items · Express lane</span>
+          <h3>Scan. Pay. Walk out.</h3>
+          <p class="desc">Open SkipQ, scan up to five items with your phone camera, and review your cart. Pay instantly
+            with Apple Pay or Mada — no card machine, no cashier. The app generates a receipt with a QR code at the
+            exit.</p>
+          <ul class="feature-list">
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12l5 5L20 6" stroke="#fff" stroke-width="3" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg></span>Scan items with your phone camera as you shop</li>
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12l5 5L20 6" stroke="#fff" stroke-width="3" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg></span>Pay instantly with Apple Pay, Mada, or card</li>
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12l5 5L20 6" stroke="#fff" stroke-width="3" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg></span>Show your QR receipt at the exit — scanned in 2 seconds</li>
+          </ul>
+          <div class="callout-strip">
+            <span class="cs-label">Five-item limit, on purpose</span>
+            <span class="cs-value">KEEPS IT EXPRESS</span>
+          </div>
+        </div>
+        <div class="feature-media reveal reveal-d1">
+          <div class="device-frame">
+            <div class="device-topbar">
+              <div class="device-dots"><span></span><span></span><span></span></div>
+              <div class="device-live"><span class="d"></span>Live in app</div>
+            </div>
+            <video muted loop playsinline preload="auto" class="lazy-video">
+              <source src="Scan_and_Pay.mp4" type="video/mp4">
+            </video>
+            <div class="float-tag tag-express">
+              <div class="ft-title">Receipt ready</div>
+              <div class="ft-sub mono">EXIT SCAN · 2 SEC</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURE 2: VIRTUAL QUEUE -->
+  <section id="queue" class="section-dim">
+    <div class="wrap">
+      <div class="feature reverse">
+        <div class="feature-copy amber reveal">
+          <span class="tag">6+ items · Virtual queue</span>
+          <h3>Take a ticket. Keep shopping.</h3>
+          <p class="desc">Got a full trolley? Tap "Join Cashier Queue" and SkipQ instantly assigns a ticket, a register,
+            and a live wait estimate. Keep browsing the aisles — your phone buzzes the moment your register is ready.
+          </p>
+          <ul class="feature-list">
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12l5 5L20 6" stroke="#fff" stroke-width="3" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg></span>Instant ticket and register assignment</li>
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12l5 5L20 6" stroke="#fff" stroke-width="3" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg></span>A live countdown, so you know exactly how long you have</li>
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12l5 5L20 6" stroke="#fff" stroke-width="3" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg></span>A push notification when your register opens — walk up, zero wait</li>
+          </ul>
+          <div class="callout-strip">
+            <span class="cs-label">Waiting becomes browsing</span>
+            <span class="cs-value">IN-QUEUE OFFERS</span>
+          </div>
+        </div>
+        <div class="feature-media reveal reveal-d1">
+          <div class="device-frame">
+            <div class="device-topbar">
+              <div class="device-dots"><span></span><span></span><span></span></div>
+              <div class="device-live"><span class="d"></span>Live in app</div>
+            </div>
+            <video muted loop playsinline preload="auto" class="lazy-video">
+              <source src="Virtual_Queue.mp4" type="video/mp4">
+            </video>
+            <div class="float-tag tag-queue">
+              <div class="ft-title">Register 3 is ready for you</div>
+              <div class="ft-sub mono" id="ticketCountdown">TICKET #84 · ETA 08:00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURE 3: AI FLYER -->
+  <section id="flyer">
+    <div class="wrap">
+      <div class="feature">
+        <div class="feature-copy gold reveal">
+          <span class="tag">AI-powered · Personalised offers</span>
+          <h3>The flyer that knows your basket.</h3>
+          <p class="desc">SkipQ learns what each customer buys — and when. Days before their next expected shop, it
+            generates a one-page flyer with a discount on exactly the items they always buy, valid only at their store,
+            for that weekend only.</p>
+          <ul class="feature-list">
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12l5 5L20 6" stroke="#fff" stroke-width="3" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg></span>Learns real purchase patterns over time</li>
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12l5 5L20 6" stroke="#fff" stroke-width="3" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg></span>Delivered automatically over WhatsApp or email</li>
+            <li><span class="tick"><svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12l5 5L20 6" stroke="#fff" stroke-width="3" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg></span>Timed to land right before the customer's next visit</li>
+          </ul>
+          <div class="callout-strip">
+            <span class="cs-label">For the customer</span>
+            <span class="cs-value" style="background:var(--gold-deep)">FEELS UNDERSTOOD, NOT SPAMMED</span>
+          </div>
+        </div>
+        <div class="feature-media reveal reveal-d1">
+          <div class="whatsapp-mock">
+            <div class="wa-header">
+              <div class="wa-avatar">SQ</div>
+              <div class="wa-name">SkipQ<span>Your weekly offer</span></div>
+            </div>
+            <div class="wa-bubble">
+              <div class="flyer-card">
+                <div class="flyer-top">
+                  <span class="flyer-badge">10% OFF · JUST FOR YOU</span>
+                  <h4>Your usual, for less</h4>
+                  <p>Valid this weekend only, in-store</p>
+                </div>
+                <div class="flyer-items">
+                  <div class="flyer-item"><span class="fi-name">Pampers Size 4</span><span class="fi-price">AED
+                      44.90</span></div>
+                  <div class="flyer-item"><span class="fi-name">Nescafé Gold</span><span class="fi-price">AED
+                      26.10</span></div>
+                </div>
+                <div class="flyer-foot">EXPIRES SUN 23:59</div>
+              </div>
+              <div class="wa-time">9:02 AM ✓✓</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIFFERENTIATOR -->
+  <section class="section-dark">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="eyebrow">Why it's different</div>
+        <h2>Most queue tech waits for you to act first. SkipQ decides for you.</h2>
+        <p>Basket size alone determines the lane — express or virtual. No kiosk to find, no button to remember to press.
+        </p>
+      </div>
+      <div class="receipts-wrap reveal">
+        <div class="receipt old">
+          <h4>Typical queue system</h4>
+          <div class="r-row"><span class="ri">✕</span><span>Scan a kiosk or press a button to join a queue</span></div>
+          <div class="r-row"><span class="ri">✕</span><span>One line for every basket size, small or full</span></div>
+          <div class="r-row"><span class="ri">✕</span><span>Wait standing in one fixed physical spot</span></div>
+          <div class="r-row"><span class="ri">✕</span><span>Same promotion for every shopper</span></div>
+          <div class="r-total"><span>AVG WAIT</span><span>14:20</span></div>
+        </div>
+        <div class="receipt new">
+          <h4>SkipQ</h4>
+          <div class="r-row"><span class="ri">✓</span><span>Basket size automatically routes you to the right
+              lane</span></div>
+          <div class="r-row"><span class="ri">✓</span><span>Express for 1–5 items, virtual queue for 6+</span></div>
+          <div class="r-row"><span class="ri">✓</span><span>Wait anywhere in the store — your phone calls you
+              forward</span></div>
+          <div class="r-row"><span class="ri">✓</span><span>Offers personalised to what you actually buy</span></div>
+          <div class="r-total"><span>AVG WAIT</span><span>00:00</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RETAILERS -->
+  <section id="retailers">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="eyebrow">For retailers</div>
+        <h2>Built for the supermarkets Carrefour doesn't serve.</h2>
+        <p>SkipQ is made for the independent and mid-size supermarkets and hypermarkets across the GCC — busy checkout
+          counters, loyal customers, and no affordable technology built for them until now.</p>
+      </div>
+      <div class="rev-grid reveal">
+        <div class="rev-card">
+          <span class="rev-icon"><svg class="icon" viewBox="0 0 24 24" fill="none">
+              <path d="M4 9.5 5 4h14l1 5.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+              <path d="M4 9.5a2.3 2.3 0 0 0 4.4 1 2.3 2.3 0 0 0 4.4 0 2.3 2.3 0 0 0 4.4 0 2.3 2.3 0 0 0 4.4-1"
+                stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+              <path d="M6 11v8.5h12V11" stroke="currentColor" stroke-width="1.6" />
+              <path d="M10 19.5V15h4v4.5" stroke="currentColor" stroke-width="1.6" />
+            </svg></span>
+          <h4>Monthly SaaS fee</h4>
+          <p>A simple per-location subscription — no hardware overhaul required.</p>
+        </div>
+        <div class="rev-card">
+          <span class="rev-icon"><svg class="icon" viewBox="0 0 24 24" fill="none">
+              <rect x="5" y="3.5" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.6" />
+              <path d="M10.5 17.5h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg></span>
+          <h4>In-queue placement</h4>
+          <p>Retailers pay to feature products on the virtual queue's waiting screen.</p>
+        </div>
+        <div class="rev-card">
+          <span class="rev-icon"><svg class="icon" viewBox="0 0 24 24" fill="none">
+              <rect x="3.5" y="5.5" width="17" height="13" rx="1.6" stroke="currentColor" stroke-width="1.6" />
+              <path d="M4 6.5 12 13l8-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg></span>
+          <h4>AI flyer campaigns</h4>
+          <p>Charged per personalised flyer campaign sent to shoppers.</p>
+        </div>
+        <div class="rev-card">
+          <span class="rev-icon"><svg class="icon" viewBox="0 0 24 24" fill="none">
+              <path d="M2.5 12.5 6 9l3 2 3-2.4 3 2 3.5-2.6" stroke="currentColor" stroke-width="1.6"
+                stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M2.5 12.5 6 16l2.5-2M21.5 12.5 18 16l-2.5-2" stroke="currentColor" stroke-width="1.6"
+                stroke-linecap="round" stroke-linejoin="round" />
+            </svg></span>
+          <h4>Brand placement</h4>
+          <p>Suppliers pay for featured placement inside personalised flyers.</p>
+        </div>
+      </div>
+      <div class="who-row reveal">
+        <div class="who-item"><b>Launch market:</b> Abu Dhabi, UAE</div>
+        <div class="who-item"><b>Reach:</b> GCC-wide</div>
+        <div class="who-item"><b>Built for:</b> Independent &amp; mid-size grocers</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="barcode"></div>
+
+  <!-- FINAL CTA -->
+  <section class="final-cta" id="cta">
+    <div class="wrap">
+      <div class="cta-ticket reveal">
+        <h2>Skip the line.<br><span class="accent">Not the store.</span></h2>
+        <p>SkipQ brings checkout into the phone in your pocket — for shoppers, and for the retailers who serve them.</p>
+        <a href="mailto:alanjolly004@gmail.com" class="btn btn-primary">Get early access</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot-top">
+        <div>
+          <div class="foot-logo">SkipQ</div>
+          <div class="foot-tag">Skip the line. Not the store.</div>
+        </div>
+        <div class="foot-links">
+          <div class="foot-col">
+            <h5>Product</h5>
+            <a href="#express">Express Lane</a>
+            <a href="#queue">Virtual Queue</a>
+            <a href="#flyer">AI Flyer</a>
+          </div>
+          <div class="foot-col">
+            <h5>Company</h5>
+            <a href="#retailers">For Retailers</a>
+            <a href="#cta">Get in touch</a>
+          </div>
+        </div>
+      </div>
+      <div class="foot-bottom">
+        <span>© 2026 SkipQ. Built for GCC retail.</span>
+        <span>Abu Dhabi, UAE</span>
+      </div>
+    </div>
+    <div class="barcode on-dark"></div>
+  </footer>
+
+  <script>
+    /* ---- Header scroll effect ---- */
+    const header = document.getElementById('siteHeader');
+    window.addEventListener('scroll', () => header.classList.toggle('scrolled', window.scrollY > 40));
+
+    /* ---- Scroll reveal ---- */
+    const revealEls = document.querySelectorAll('.reveal:not(.in)');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.15 });
+    revealEls.forEach(el => io.observe(el));
+
+    /* ---- Lazy-play videos: start on scroll-in, pause on scroll-out ---- */
+    const videoObs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        const v = e.target;
+        if (e.isIntersecting) {
+          v.play().catch(() => {});
+        } else {
+          v.pause();
+          v.currentTime = 0;          // restart from the beginning next time
+        }
+      });
+    }, { threshold: 0.3 });
+    document.querySelectorAll('video.lazy-video').forEach(v => videoObs.observe(v));
+
+    /* ---- Queue countdown on device tag ---- */
+    let eta = 8 * 60;
+    const countdownEl = document.getElementById('ticketCountdown');
+    function fmt(s) {
+      const m = Math.floor(s / 60).toString().padStart(2, '0');
+      const sec = (s % 60).toString().padStart(2, '0');
+      return m + ':' + sec;
+    }
+    setInterval(() => {
+      if (!countdownEl) return;
+      eta -= 1;
+      if (eta < 0) eta = 8 * 60;
+      countdownEl.textContent = eta > 0 ? 'TICKET #84 · ETA ' + fmt(eta) : 'TICKET #84 · READY NOW';
+    }, 1000);
+
+    /* ---- Split-flap "now serving" board (fast & punchy) ---- */
+    const flap1 = document.getElementById('flap1');
+    const flap2 = document.getElementById('flap2');
+    const regNum = document.getElementById('regNum');
+    const waitClock = document.getElementById('waitClock');
+    let serving = 3, register = 5, wait = 45;
+
+    function flip(el, val) {
+      if (!el) return;
+      el.classList.remove('flip');
+      void el.offsetWidth;
+      el.textContent = val;
+      el.classList.add('flip');
+    }
+
+    function tickBoard() {
+      serving = serving >= 99 ? 1 : serving + 1;
+      register = register >= 8 ? 1 : register + 1;
+      wait = Math.max(10, Math.floor(Math.random() * 90));
+      const s = serving.toString().padStart(2, '0');
+      flip(flap1, s[0]);
+      flip(flap2, s[1]);
+      if (regNum) regNum.textContent = register.toString().padStart(2, '0');
+      const m = Math.floor(wait / 60).toString().padStart(2, '0');
+      const sec = (wait % 60).toString().padStart(2, '0');
+      if (waitClock) waitClock.textContent = 'AVG WAIT · ' + m + ':' + sec;
+    }
+
+    // Fire the first tick almost immediately so the board feels alive on load
+    setTimeout(tickBoard, 400);
+    // Then repeat every 1.8 s — fast enough to feel live, slow enough to read
+    setInterval(tickBoard, 1800);
+  </script>
+
+</body>
+
+</html>
